@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Pro Digital Agreement System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<!-- ===== LIBRARIES ===== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+<!-- ===== STYLE ===== -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+
+:root{
+  --bg:#020617;
+  --card:#0f172a;
+  --accent:#22c55e;
+  --accent2:#38bdf8;
+  --text:#e5e7eb;
+  --muted:#9ca3af;
+  --mouseX:50%;
+  --mouseY:30%;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(circle at var(--mouseX) var(--mouseY),rgba(56,189,248,.12),transparent 45%),
+    radial-gradient(circle at top,#020617,#000);
+  color:var(--text);
+  font-family:'Space Grotesk',Inter,system-ui,Arial;
+  overflow-x:hidden;
+}
+
+body::before{
+  content:"";
+  position:fixed;
+  inset:-20%;
+  background:radial-gradient(circle at 20% 20%,rgba(34,197,94,.18),transparent 55%),radial-gradient(circle at 80% 80%,rgba(56,189,248,.2),transparent 60%);
+  filter:blur(40px);
+  opacity:.55;
+  z-index:0;
+  animation:drift 18s ease-in-out infinite alternate;
+  pointer-events:none;
+}
+
+@keyframes drift{
+  0%{transform:translate3d(0,0,0) scale(1)}
+  100%{transform:translate3d(0,-40px,0) scale(1.05)}
+}
+
+.background-orbs{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  overflow:hidden;
+}
+
+.background-orbs span{
+  position:absolute;
+  width:360px;
+  height:360px;
+  border-radius:50%;
+  filter:blur(120px);
+  opacity:.35;
+  background:radial-gradient(circle,rgba(56,189,248,.55) 0%, transparent 75%);
+}
+
+.background-orbs .orb-green{background:radial-gradient(circle,rgba(34,197,94,.55) 0%, transparent 75%)}
+.background-orbs .orb-1{top:-120px;left:-80px}
+.background-orbs .orb-2{bottom:-160px;right:-90px}
+.background-orbs .orb-3{top:30%;right:35%}
+
+.cursor-glow{
+  position:fixed;
+  width:220px;
+  height:220px;
+  border-radius:50%;
+  pointer-events:none;
+  z-index:5;
+  mix-blend-mode:screen;
+  background:radial-gradient(circle,rgba(56,189,248,.35) 0%,rgba(34,197,94,.25) 45%,transparent 70%);
+  transform:translate(-50%,-50%);
+  opacity:0;
+}
+
+.wrapper{max-width:1200px;margin:auto;padding:32px}
+header{text-align:center;margin-bottom:40px}
+header h1{font-size:40px;letter-spacing:1px}
+header p{color:var(--muted)}
+
+/* ===== LAYOUT ===== */
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:24px;
+}
+
+.card{
+  background:linear-gradient(180deg,#0f172a,#020617);
+  border-radius:20px;
+  padding:24px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+  position:relative;
+  overflow:hidden;
+  z-index:1;
+}
+
+.card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(120deg,transparent,rgba(34,197,94,.08),transparent);
+  opacity:0;
+  pointer-events:none; /* FIX: allow clicks */
+}
+.card:hover::after{opacity:1}
+
+h2{margin-top:0;font-size:22px}
+label{font-size:13px;color:var(--muted)}
+input,textarea,select{
+  width:100%;
+  padding:14px;
+  margin:10px 0 18px;
+  border-radius:14px;
+  border:1px solid #1e293b;
+  background:#020617;
+  color:#fff;
+}
+textarea{resize:none;height:100px}
+
+button{
+  padding:16px 22px;
+  border-radius:14px;
+  border:none;
+  font-weight:700;
+  cursor:pointer;
+  transition:.3s;
+}
+.primary{background:var(--accent);color:#052e16}
+.primary:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(34,197,94,.4)}
+.secondary{background:#020617;color:var(--accent);border:1px solid var(--accent)}
+.signature-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:24px;
+}
+
+#clearSignature{
+  background:rgba(15,23,42,.65);
+  color:#94a3b8;
+  border:1px solid rgba(148,163,184,.35);
+  font-weight:600;
+}
+#clearSignature:hover{
+  color:#e2e8f0;
+  border-color:rgba(148,163,184,.6);
+  box-shadow:0 12px 30px rgba(2,6,23,.45);
+}
+
+canvas{
+  width:100%;
+  height:180px;
+  background:#f8fafc;
+  border-radius:14px;
+  border:1px dashed #94a3b8;
+  box-shadow:inset 0 0 0 1px rgba(148,163,184,.25);
+}
+
+.check{margin-top:18px}
+.check-label{
+  position:relative;
+  display:flex;
+  align-items:flex-start;
+  gap:16px;
+  padding:18px 20px;
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(15,23,42,.88),rgba(30,41,59,.92));
+  border:1px solid rgba(148,163,184,.2);
+  box-shadow:0 18px 40px rgba(2,6,23,.5);
+  transition:transform .3s ease, box-shadow .3s ease, border .3s ease;
+  cursor:pointer;
+}
+.check-label::after{
+  content:"";
+  position:absolute;
+  inset:1px;
+  border-radius:17px;
+  background:linear-gradient(135deg,rgba(56,189,248,.12),rgba(34,197,94,.12));
+  opacity:0;
+  transition:opacity .3s ease;
+  pointer-events:none;
+}
+.check-label:hover{transform:translateY(-2px);box-shadow:0 24px 45px rgba(2,6,23,.55);}
+.check-label:hover::after{opacity:1;}
+.check-input{position:absolute;opacity:0;pointer-events:none;}
+.check-box{
+  width:28px;
+  height:28px;
+  border-radius:10px;
+  border:1px solid rgba(148,163,184,.4);
+  box-shadow:inset 0 0 0 1px rgba(148,163,184,.25),0 12px 26px rgba(2,6,23,.55);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.92));
+  transition:all .25s ease;
+}
+.check-mark{
+  width:14px;
+  height:9px;
+  border-left:3px solid transparent;
+  border-bottom:3px solid transparent;
+  transform:rotate(-45deg) scale(.6);
+  opacity:0;
+  transition:opacity .2s ease, transform .2s ease;
+}
+.check-text{font-size:14px;line-height:1.5;color:var(--muted);max-width:500px;}
+.check-input:focus-visible + .check-box{box-shadow:0 0 0 3px rgba(56,189,248,.35);}
+.check-input:checked + .check-box{
+  border-color:rgba(34,197,94,.7);
+  background:linear-gradient(135deg,rgba(34,197,94,.9),rgba(56,189,248,.9));
+  box-shadow:0 12px 30px rgba(34,197,94,.45);
+}
+.check-input:checked + .check-box .check-mark{
+  border-left-color:#0f172a;
+  border-bottom-color:#0f172a;
+  opacity:1;
+  transform:rotate(-45deg) scale(1);
+}
+.check-input:checked ~ .check-text{color:#e2e8f0;}
+
+footer{
+  margin-top:60px;
+  padding:24px;
+  text-align:center;
+  color:var(--muted);
+}
+
+/* ===== DASHBOARD PREVIEW ===== */
+.dashboard{
+  margin-top:60px;
+  padding:40px;
+  border-radius:24px;
+  background:linear-gradient(160deg,#020617,#020617 60%,rgba(56,189,248,.08));
+}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:20px;
+}
+.stat{
+  background:#0f172a;
+  padding:20px;
+  border-radius:18px;
+}
+.stat h3{margin:0;color:var(--accent2)}
+.stat p{margin:6px 0 0;color:var(--muted)}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+.cursor-hidden *{cursor:none}
+</style>
+</head>
+
+<body>
+<div class="background-orbs">
+  <span class="orb-1"></span>
+  <span class="orb-2 orb-green"></span>
+  <span class="orb-3"></span>
+</div>
+<div class="cursor-glow" id="cursorGlow"></div>
+<div class="wrapper">
+
+<header>
+  <h1>PRO DIGITAL AGREEMENT</h1>
+  <p>Secure • Animated • Professional • PDF Auto‑Download</p>
+</header>
+
+<!-- ===== AGREEMENT FORM ===== -->
+<div class="grid">
+
+<div class="card" style="pointer-events:auto">
+  <h2>Client Information</h2>
+  <label>Full Name</label>
+  <input id="clientName" placeholder="Client full name" />
+
+  <label>Business Name</label>
+  <input id="businessName" placeholder="Business / Brand" />
+
+  <label>Email</label>
+  <input id="clientEmail" type="email" placeholder="example@email.com" />
+
+  <label>Phone Number</label>
+  <input id="phone" placeholder="+251 9xx xxx xxx" />
+
+  <label>Monthly Salary / Budget</label>
+  <input id="salary" placeholder="$ / ETB Amount" />
+
+  <label>Service Package</label>
+  <select id="package">
+    <option>manage your social media</option>
+    <option>website development</option>
+    <option>digital menu</option>
+    <option>graphics</option>
+  </select>
+
+  <label>Agreement Notes</label>
+  <textarea id="notes" placeholder="Extra terms or custom notes"></textarea>
+</div>
+
+<div class="card" style="pointer-events:auto">
+  <h2>Digital Signature</h2>
+  <p style="color:var(--muted);font-size:14px">Draw your legal signature below</p>
+  <canvas id="sign" style="touch-action:none"></canvas>
+
+  <div class="check">
+    <label class="check-label" for="agree">
+      <input type="checkbox" id="agree" class="check-input" />
+      <span class="check-box"><span class="check-mark"></span></span>
+      <span class="check-text">I confirm all information is correct and legally binding</span>
+    </label>
+  </div>
+
+  <div class="signature-actions">
+    <button class="primary" id="submit">Generate & Download PDF</button>
+    <button class="secondary" id="clearSignature" type="button">Clear Signature</button>
+  </div>
+  <p id="status"></p>
+</div>
+
+</div>
+
+<div class="card terms-card">
+  <h2>Agreement Highlights</h2>
+  <p style="color:var(--muted);font-size:14px;margin-top:-6px">Review the 10 enforceable terms before signing.</p>
+  <ol id="termsList"></ol>
+</div>
+
+<!-- ===== FUTURE ADMIN DASHBOARD (PREVIEW) ===== -->
+<div class="dashboard">
+  <h2>Admin Dashboard (Future System)</h2>
+  <p style="color:var(--muted)">Client & profit management – coming next phase</p>
+
+  <div class="stats">
+    <div class="stat"><h3>10+</h3><p>Total Clients</p></div>
+    <div class="stat"><h3>$</h3><p>Total Revenue</p></div>
+    <!-- <div class="stat"><h3>34</h3><p>Active Campaigns</p></div>
+    <div class="stat"><h3>8</h3><p>Team Members</p></div> -->
+  </div>
+</div>
+
+<footer>
+  © 2025 Digital Agency System • Built for serious business
+</footer>
+</div>
+
+<!-- ===== SCRIPT ===== -->
+<script>
+const { jsPDF } = window.jspdf;
+
+const clientNameInput = document.getElementById('clientName');
+const businessNameInput = document.getElementById('businessName');
+const clientEmailInput = document.getElementById('clientEmail');
+const phoneInput = document.getElementById('phone');
+const salaryInput = document.getElementById('salary');
+const packageSelect = document.getElementById('package');
+const notesInput = document.getElementById('notes');
+const agreeCheckbox = document.getElementById('agree');
+const statusEl = document.getElementById('status');
+const cursorGlow = document.getElementById('cursorGlow');
+const clearSignatureBtn = document.getElementById('clearSignature');
+
+const agreementTerms = [
+  'The Agency will develop a tailored digital marketing strategy aligned with the Client\'s stated objectives.',
+  'The Client will provide brand assets, credentials, and approvals within three (3) business days of request.',
+  'Campaign launch timelines are dependent on timely client feedback and supplied materials.',
+  'Monthly performance reports will be delivered on the final business day of each billing cycle.',
+  'Payments are due upfront at the start of each month and are non-refundable once services commence.',
+  'Scope changes outside the selected package will be quoted and invoiced separately.',
+  'The Agency will maintain confidentiality of all client data and marketing insights.',
+  'The Client grants permission to use campaign results for portfolio purposes with prior written consent.',
+  'Either party may terminate the agreement with a 30-day written notice; outstanding fees remain payable.',
+  'The Client acknowledges that legal validity is maintained through this digital agreement and signature.'
+];
+
+document.getElementById('termsList').innerHTML = agreementTerms
+  .map(term => `<li><span>${term}</span></li>`)
+  .join('');
+
+/* ===== SIGNATURE DRAW ===== */
+const canvas = document.getElementById('sign');
+canvas.style.pointerEvents='auto';
+const ctx = canvas.getContext('2d');
+let drawing = false;
+canvas.tabIndex = 0;
+
+function prepareCanvas(){
+  const ratio = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * ratio;
+  canvas.height = rect.height * ratio;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(ratio, ratio);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 2.6;
+  ctx.strokeStyle = '#111827';
+  ctx.fillStyle = '#ffffff';
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.restore();
+}
+
+prepareCanvas();
+
+function clearSignatureCanvas(){
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.restore();
+  ctx.beginPath();
+}
+
+function getPos(e){const rect=canvas.getBoundingClientRect();return e.touches?{x:e.touches[0].clientX-rect.left,y:e.touches[0].clientY-rect.top}:{x:e.offsetX,y:e.offsetY}}
+
+canvas.addEventListener('mousedown',e=>{drawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)});
+canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke()});
+canvas.addEventListener('mouseup',()=>drawing=false);
+canvas.addEventListener('mouseleave',()=>drawing=false);
+
+canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke()});
+canvas.addEventListener('touchend',()=>drawing=false);
+
+clearSignatureBtn.addEventListener('click',()=>{
+  clearSignatureCanvas();
+  statusEl.textContent='';
+});
+
+/* ===== ANIMATION ===== */
+gsap.from('.card',{y:40,opacity:0,stagger:.2,duration:1,ease:'power3.out'});
+gsap.set(cursorGlow,{xPercent:-50,yPercent:-50});
+gsap.to('.background-orbs span',{
+  duration:12,
+  x:()=>gsap.utils.random(-60,60),
+  y:()=>gsap.utils.random(-40,40),
+  scale:()=>gsap.utils.random(.9,1.1),
+  opacity:()=>gsap.utils.random(.25,.45),
+  repeat:-1,
+  yoyo:true,
+  ease:'sine.inOut',
+  stagger:.6
+});
+
+document.addEventListener('pointermove',e=>{
+  const { clientX, clientY } = e;
+  cursorGlow.style.opacity = 1;
+  gsap.to(cursorGlow,{duration:.35,x:clientX,y:clientY,ease:'power3.out'});
+  const xPercent = (clientX/window.innerWidth)*100;
+  const yPercent = (clientY/window.innerHeight)*100;
+  document.documentElement.style.setProperty('--mouseX',`${xPercent}%`);
+  document.documentElement.style.setProperty('--mouseY',`${yPercent}%`);
+});
+
+document.addEventListener('pointerleave',()=>{
+  gsap.to(cursorGlow,{duration:.45,opacity:0});
+});
+
+/* ===== PDF GENERATION ===== */
+document.getElementById('submit').onclick = ()=>{
+  if(!agreeCheckbox.checked){
+    statusEl.textContent='You must accept the agreement';
+    statusEl.style.color='red';
+    return;
+  }
+
+  const pdf = new jsPDF({unit:'mm',format:'a4'});
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const margin = 20;
+  let cursorY = margin + 8;
+
+  pdf.setTextColor(15,23,42);
+  pdf.setFont('helvetica','bold');
+  pdf.setFontSize(20);
+  pdf.text('Digital Marketing Agreement', pageWidth/2, cursorY, {align:'center'});
+
+  cursorY += 6;
+  pdf.setDrawColor(148,163,184);
+  pdf.setLineWidth(.5);
+  pdf.line(margin, cursorY, pageWidth - margin, cursorY);
+
+  cursorY += 10;
+  pdf.setTextColor(30,41,59);
+  pdf.setFont('helvetica','normal');
+  pdf.setFontSize(12);
+
+  const detailLines = [
+    `Client Name: ${clientNameInput.value || 'Not provided'}`,
+    `Business: ${businessNameInput.value || 'Not provided'}`,
+    `Email: ${clientEmailInput.value || 'Not provided'}`,
+    `Phone: ${phoneInput.value || 'Not provided'}`,
+    `Salary / Budget: ${salaryInput.value || 'Not provided'}`,
+    `Service Package: ${packageSelect.value}`
+  ];
+
+  detailLines.forEach(line=>{
+    pdf.text(line, margin, cursorY);
+    cursorY += 7;
+  });
+
+  cursorY += 2;
+  pdf.setFont('helvetica','bold');
+  pdf.setTextColor(22,163,74);
+  pdf.setFontSize(13);
+  pdf.text('Agreement Terms', margin, cursorY);
+
+  cursorY += 6;
+  pdf.setFont('helvetica','normal');
+  pdf.setTextColor(51,65,85);
+  pdf.setFontSize(11.5);
+
+  agreementTerms.forEach((term,index)=>{
+    const wrapped = pdf.splitTextToSize(`${index+1}. ${term}`, pageWidth - margin*2);
+    if(cursorY + wrapped.length*6 > pdf.internal.pageSize.getHeight() - margin){
+      pdf.addPage();
+      cursorY = margin;
+      pdf.setFont('helvetica','bold');
+      pdf.setTextColor(22,163,74);
+      pdf.setFontSize(13);
+      pdf.text('Agreement Terms (cont.)', margin, cursorY);
+      cursorY += 6;
+      pdf.setFont('helvetica','normal');
+      pdf.setTextColor(51,65,85);
+      pdf.setFontSize(11.5);
+    }
+    pdf.text(wrapped, margin, cursorY);
+    cursorY += wrapped.length*6 + 2;
+  });
+
+  cursorY += 6;
+  pdf.setFont('helvetica','bold');
+  pdf.setTextColor(22,163,74);
+  pdf.setFontSize(12);
+  pdf.text('Additional Notes', margin, cursorY);
+
+  cursorY += 6;
+  pdf.setFont('helvetica','normal');
+  pdf.setTextColor(71,85,105);
+  const notesWrapped = pdf.splitTextToSize(notesInput.value || 'N/A', pageWidth - margin*2);
+  pdf.text(notesWrapped, margin, cursorY);
+  cursorY += notesWrapped.length*6 + 10;
+
+  if(cursorY > pdf.internal.pageSize.getHeight() - margin - 40){
+    pdf.addPage();
+    cursorY = margin + 10;
+  }
+
+  pdf.setFont('helvetica','bold');
+  pdf.setTextColor(22,163,74);
+  pdf.text('Client Signature', margin, cursorY);
+  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, cursorY + 4, 80, 30);
+
+  pdf.setFont('helvetica','normal');
+  pdf.setTextColor(71,85,105);
+  pdf.text(`Signed on: ${new Date().toLocaleString()}`, margin, cursorY + 46);
+
+  pdf.save('Digital_Agreement_Pro.pdf');
+
+  statusEl.textContent='PDF downloaded successfully';
+  statusEl.style.color='#22c55e';
+};
+</script>
+</body>
+</html>
